@@ -46,22 +46,15 @@ public class DebugOverlay {
     }
 
     static {
-        LOL(1);
-        LOL(2);
-        LOL(3);
-    }
-
-    private static void LOL(int num) {
-        var coordsSupplier = new DebugSupplier("MC_Location" + num, 99, () -> {
+        var coordsSupplier = new DebugSupplier("MC_Location", 99, () -> {
             Player player = Minecraft.getInstance().player;
             BlockPos playerPos = player.blockPosition();
             var dobj = new DebugObject("Coords", playerPos.getX() + " " + playerPos.getY() + " " + playerPos.getZ(), "Coordinates", "X: " + playerPos.getX() + ", " + "Y " + playerPos.getY() + ", " + "Z: " + playerPos.getZ());
-            dobj.setLongKeyColor(16776960);
             return dobj;
         });
         registerDebugLine(coordsSupplier.getKey(), coordsSupplier);
 
-        var facingSupplier = new DebugSupplier("MC_Facing" + num, 98, () -> {
+        var facingSupplier = new DebugSupplier("MC_Facing", 98, () -> {
             Player player = Minecraft.getInstance().player;
             float adjustedYaw = (player.getYRot() + 180) % 360;
             if (adjustedYaw < 0)
@@ -73,12 +66,11 @@ public class DebugOverlay {
 
             int index = (int)((adjustedYaw + 22.5) / 45) % 8;
             var dobj = new DebugObject("Dir", directions[index], "Facing Direction", directions[index]);
-            dobj.setShortValueColor(16711680);
             return dobj;
         });
         registerDebugLine(facingSupplier.getKey(), facingSupplier);
 
-        var blockLightSupplier = new DebugSupplier("MC_Block_Light" + num, 97, () -> {
+        var blockLightSupplier = new DebugSupplier("MC_Block_Light", 97, () -> {
             Player player = Minecraft.getInstance().player;
             var playerPos = player.blockPosition();
             var ll = String.valueOf(player.level().getLightEngine().getLayerListener(LightLayer.BLOCK).getLightValue(playerPos));
@@ -86,9 +78,9 @@ public class DebugOverlay {
         });
         registerDebugLine(blockLightSupplier.getKey(), blockLightSupplier);
 
-        changePriority("MC_Location" + num, x -> f3Enabled && !hudEnabled ? 0 : x);
-        changePriority("MC_Facing" + num, x -> f3Enabled && !hudEnabled ? 0 : x);
-        changePriority("MC_Block_Light" + num, x -> f3Enabled && !hudEnabled ? 0 : x);
+        changePriority("MC_Location", x -> f3Enabled && !hudEnabled ? 0 : x);
+        changePriority("MC_Facing", x -> f3Enabled && !hudEnabled ? 0 : x);
+        changePriority("MC_Block_Light", x -> f3Enabled && !hudEnabled ? 0 : x);
     }
 
     public static boolean getF3Enabled() { return f3Enabled; }
