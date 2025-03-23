@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.lestora.debug.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "mixins.lestora.refmap.json",
+  "mixins": [
+    "DisableDebugMixin"
+  ],
+  "client": [],
+  "server": []
+}
