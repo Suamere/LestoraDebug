@@ -25,6 +25,7 @@ public class DebugCommands {
         var root = Commands.literal("lestora");
 
         registerIgnoreKeyCommand(root);
+        registerUnblockKeyCommand(root);
 
         event.getDispatcher().register(root);
     }
@@ -48,4 +49,23 @@ public class DebugCommands {
                         )
                 );
     }
+
+    private static void registerUnblockKeyCommand(LiteralArgumentBuilder<CommandSourceStack> root) {
+        root
+                .then(Commands.literal("allowKey")
+                        .then(Commands.argument("key", StringArgumentType.word())
+                                .suggests((ctx, builder) ->
+                                        // suggest only the keys currently in the blocklist
+                                        SharedSuggestionProvider.suggest(DebugDataParser.getBlockedKeys(), builder)
+                                )
+                                .executes(ctx -> {
+                                    String key = StringArgumentType.getString(ctx, "key");
+                                    DebugDataParser.removeFromBlocklist(key);
+                                    ctx.getSource().sendSuccess(() -> Component.literal("No longer ignoring debug key: " + key), false);
+                                    return 1;
+                                })
+                        )
+                );
+    }
+
 }
