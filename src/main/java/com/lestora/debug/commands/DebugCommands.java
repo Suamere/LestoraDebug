@@ -5,14 +5,12 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -23,7 +21,6 @@ public class DebugCommands {
     public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
         var root = Commands.literal("debug");
 
-        // register each sub-command by name + delegate
         addCommand("listIgnoredKeys", root, DebugCommands::listIgnoredKeys);
         addCommand("ignoreKey",       root, DebugCommands::ignoreKey);
         addCommand("allowKey",        root, DebugCommands::allowKey);
@@ -39,8 +36,7 @@ public class DebugCommands {
 
     private static void listIgnoredKeys(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.executes(ctx -> {
-                List<String> blocked = DebugDataParser.getBlockedKeys();
-                if (blocked.isEmpty()) {
+                if (DebugDataParser.blocklist.isEmpty()) {
                     ctx.getSource().sendSuccess(() ->
                             Component.literal("no debug data is currently ignored"), false
                     );
@@ -48,7 +44,7 @@ public class DebugCommands {
                     ctx.getSource().sendSuccess(() ->
                             Component.literal("Currently ignored keys:"), false
                     );
-                    for (String key : blocked) {
+                    for (String key : DebugDataParser.blocklist) {
                         ctx.getSource().sendSuccess(() ->
                                 Component.literal(" - " + key), false
                         );
@@ -61,26 +57,22 @@ public class DebugCommands {
     private static void ignoreKey(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.then(Commands.argument("key", StringArgumentType.greedyString())
                 .suggests((ctx, builder) -> {
-                    // 1) special sections first
                     builder.suggest("!All");
                     builder.suggest("!MinecraftData (TopLeft)");
                     builder.suggest("!SystemData (TopRight)");
                     builder.suggest("!LocationData (BottomLeft)");
                     builder.suggest("!TargetData (BottomRight)");
 
-                    // 2) then all individual keys
                     for (String k : DebugDataParser.getAllKeys()) {
                         builder.suggest(k);
                     }
 
-                    // 3) finally build and return the suggestions
                     return builder.buildFuture();
                 })
             .executes(ctx -> {
                 String key = StringArgumentType.getString(ctx, "key");
                 switch (key) {
                     case "!All" -> {
-                        // block every line‐level key in both left and right
                         for (String lineKey : DebugDataParser.leftLines) {
                             if (!"<br>".equals(lineKey)) {
                                 DebugDataParser.blocklist.add(lineKey);
@@ -94,13 +86,12 @@ public class DebugCommands {
                         ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring all debug sections"), false);
                     }
                     case "!MinecraftData (TopLeft)" -> {
-                        // block every data‐key under MinecraftData
                         for (String fullKey : DebugDataParser.data.keySet()) {
                             if (fullKey.startsWith("MinecraftData.")) {
                                 DebugDataParser.blocklist.add(fullKey);
                             }
                         }
-                        ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring MinecraftData section"), false);
+                        ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring the MinecraftData section"), false);
                     }
                     case "!SystemData (TopRight)" -> {
                         for (String fullKey : DebugDataParser.data.keySet()) {
@@ -108,7 +99,7 @@ public class DebugCommands {
                                 DebugDataParser.blocklist.add(fullKey);
                             }
                         }
-                        ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring System section"), false);
+                        ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring the System section"), false);
                     }
                     case "!LocationData (BottomLeft)" -> {
                         for (String fullKey : DebugDataParser.data.keySet()) {
@@ -116,7 +107,7 @@ public class DebugCommands {
                                 DebugDataParser.blocklist.add(fullKey);
                             }
                         }
-                        ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring LocationDetails section"), false);
+                        ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring the LocationDetails section"), false);
                     }
                     case "!TargetData (BottomRight)" -> {
                         for (String fullKey : DebugDataParser.data.keySet()) {
@@ -127,7 +118,6 @@ public class DebugCommands {
                         ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring all Targeting sections"), false);
                     }
                     default -> {
-                        // single key
                         DebugDataParser.blocklist.add(key);
                         ctx.getSource().sendSuccess(() -> Component.literal("Now ignoring debug key: " + key), false);
                     }
@@ -140,19 +130,16 @@ public class DebugCommands {
     private static void allowKey(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.then(Commands.argument("key", StringArgumentType.greedyString())
             .suggests((ctx, builder) -> {
-                // 1) special sections first
                 builder.suggest("!All");
                 builder.suggest("!MinecraftData (TopLeft)");
                 builder.suggest("!SystemData (TopRight)");
                 builder.suggest("!LocationData (BottomLeft)");
                 builder.suggest("!TargetData (BottomRight)");
 
-                // 2) then all individual keys
-                for (String k : DebugDataParser.getBlockedKeys()) {
+                for (String k : DebugDataParser.blocklist) {
                     builder.suggest(k);
                 }
 
-                // 3) finally build and return the suggestions
                 return builder.buildFuture();
             })
                 .executes(ctx -> {
@@ -164,19 +151,19 @@ public class DebugCommands {
                         }
                         case "!MinecraftData (TopLeft)" -> {
                             DebugDataParser.blocklist.removeIf(bk -> bk.startsWith("MinecraftData."));
-                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring MinecraftData section"), false);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring the MinecraftData section"), false);
                         }
                         case "!SystemData (TopRight)" -> {
                             DebugDataParser.blocklist.removeIf(bk -> bk.startsWith("System."));
-                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring SystemData section"), false);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring the System section"), false);
                         }
                         case "!LocationData (BottomLeft)" -> {
                             DebugDataParser.blocklist.removeIf(bk -> bk.startsWith("LocationDetails."));
-                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring LocationData section"), false);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring the LocationDetails section"), false);
                         }
                         case "!TargetData (BottomRight)" -> {
                             DebugDataParser.blocklist.removeIf(bk -> bk.startsWith("Targets."));
-                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring TargetData section"), false);
+                            ctx.getSource().sendSuccess(() -> Component.literal("Stopped ignoring all Targeting sections"), false);
                         }
                         default -> {
                             DebugDataParser.blocklist.remove(key);

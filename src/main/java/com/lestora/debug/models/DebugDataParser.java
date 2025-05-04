@@ -2,9 +2,28 @@ package com.lestora.debug.models;
 import net.minecraft.ChatFormatting;
 
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.regex.*;
 
 public class DebugDataParser {
+    @FunctionalInterface
+    public interface LineHandler {
+        /**
+         * @param lineKey       the logical key for this line (e.g. "LocationDetails.Light")
+         * @param rawLine       the exact text from F3
+         * @param datumEmitter  call datumEmitter.accept(datumKey, datumValue) for each piece you parse
+         * @return a Function that, given a map of datumKey→datumValue, reconstructs the line
+         */
+        Function<Map<String,String>, String> handle(
+                String lineKey,
+                String rawLine,
+                BiConsumer<String,String> datumEmitter
+        );
+    }
+    private static final Map<String, LineHandler> lineHandlers = new LinkedHashMap<>();
+    // at top of class
+    private static final Map<String, Function<Map<String,String>,String>> rebuilderMap = new HashMap<>();
     // Single flat map for all parsed data.
     public static Map<String, String> data = new LinkedHashMap<>();
     // Static global blocklist for keys to exclude.
@@ -75,8 +94,57 @@ public class DebugDataParser {
             "Targets.TargetEntity"
     ));
 
-    public static List<String> getBlockedKeys() {
-        return Collections.unmodifiableList(new ArrayList<>(blocklist));
+    static {
+        registerHandler("MinecraftData.VersionInfo", (lineKey, line, emit) -> {
+            // "Minecraft 1.21.4 (MOD_DEV/forge)"
+            // Use a regex to pull out version and optional mod name
+            Matcher m = Pattern.compile("^Minecraft\\s+(\\S+)(?:\\s+\\(([^)]+)\\))?").matcher(line);
+            if (m.find()) {
+                String version = m.group(1);
+                emit.accept("VersionNumber", version);
+
+                String modName = m.group(2);
+                if (modName != null && !modName.isEmpty()) {
+                    emit.accept("ModName", modName);
+                }
+            }
+
+            return (datumKVP) -> {
+                String ver    = datumKVP.get("VersionNumber");
+                String mod    = datumKVP.get("ModName");
+
+                if (ver == null && mod == null) {
+                    return null;
+                }
+
+                StringBuilder sb = new StringBuilder("Minecraft");
+                if (ver != null) {
+                    sb.append(" ").append(ver);
+                }
+                if (mod != null) {
+                    sb.append(" (").append(mod).append(")");
+                }
+                return sb.toString();
+            };
+        });
+    }
+
+    /**
+     * Register a handler for a specific lineKey.
+     * Any existing handler for that key will be replaced.
+     *
+     * @param lineKey   the logical key (e.g. "LocationDetails.Light")
+     * @param handler   the parser/builder for that line
+     */
+    public static void registerHandler(String lineKey, LineHandler handler) {
+        lineHandlers.put(lineKey, handler);
+    }
+
+    /**
+     * Retrieve the rebuilder you registered for a given lineKey (or null).
+     */
+    public static Function<Map<String,String>,String> getRebuilder(String lineKey) {
+        return rebuilderMap.get(lineKey);
     }
 
     public static void parse(List<String> lines) {
@@ -109,33 +177,49 @@ public class DebugDataParser {
 
             // ─── first paragraph (MinecraftData) ───
             if (line.startsWith("Minecraft ")) {
-                // "Minecraft 1.21.4 (MOD_DEV/forge)"
-                // Use a regex to pull out version and optional mod name
-                Matcher m = Pattern.compile("^Minecraft\\s+(\\S+)(?:\\s+\\(([^)]+)\\))?").matcher(line);
-                if (m.find()) {
-                    String version = m.group(1);
-                    putIfNotBlocked("MinecraftData.VersionInfo.VersionNumber", version, missing);
-
-                    String modName = m.group(2);
-                    if (modName != null && !modName.isEmpty()) {
-                        putIfNotBlocked("MinecraftData.VersionInfo.ModName", modName, missing);
-                    }
-                }
+                UseHandler("MinecraftData.VersionInfo", line, missing);
                 continue;
             }
 
-            if (line.contains(" fps ") && line.contains("GPU:")) {
-                // "60 fps T: 120 vsync fancy clouds B: 2 GPU: 20%"
+            if (line.contains(" fps ")) {
+                // "60 fps T: 120 vsync fancy fancy-clouds B: 2"
+                // or later:
+                // "60 fps T: 120 vsync fancy fancy-clouds B: 2 GPU: 20%"
+
                 String[] tok = line.split("\\s+");
-                putIfNotBlocked("MinecraftData.Renderer.FPS", tok[0], missing);
+                // first token is always the fps number
+                if (tok.length > 0) {
+                    putIfNotBlocked("MinecraftData.Renderer.FPS", tok[0], missing);
+                }
+
+                // loop through all the tokens looking for known markers
                 for (int j = 1; j < tok.length; j++) {
                     switch (tok[j]) {
-                        case "T:" -> putIfNotBlocked("MinecraftData.Renderer.TickTime", tok[j+1], missing);
+                        case "T:" -> {
+                            if (j + 1 < tok.length) {
+                                putIfNotBlocked("MinecraftData.Renderer.TickTime", tok[j + 1], missing);
+                            }
+                        }
                         case "vsync" -> putIfNotBlocked("MinecraftData.Renderer.VSync", "on", missing);
-                        case "fast","fancy","fabulous" -> putIfNotBlocked("MinecraftData.Renderer.Graphics", tok[j], missing);
-                        case "fancy-clouds","fast-clouds" -> putIfNotBlocked("MinecraftData.Renderer.Clouds", tok[j], missing);
-                        case "B:" -> putIfNotBlocked("MinecraftData.Renderer.BiomeBlend", tok[j+1], missing);
-                        case "GPU:" -> putIfNotBlocked("MinecraftData.Renderer.GPU", tok[j+1].replace("%",""), missing);
+                        case "fast", "fancy", "fabulous" ->
+                                putIfNotBlocked("MinecraftData.Renderer.Graphics", tok[j], missing);
+                        case "fancy-clouds", "fast-clouds" ->
+                                putIfNotBlocked("MinecraftData.Renderer.Clouds", tok[j], missing);
+                        case "B:" -> {
+                            if (j + 1 < tok.length) {
+                                putIfNotBlocked("MinecraftData.Renderer.BiomeBlend", tok[j + 1], missing);
+                            }
+                        }
+                        case "GPU:" -> {
+                            if (j + 1 < tok.length) {
+                                // strip the trailing “%”
+                                putIfNotBlocked(
+                                        "MinecraftData.Renderer.GPU",
+                                        tok[j + 1].replace("%", ""),
+                                        missing
+                                );
+                            }
+                        }
                     }
                 }
                 continue;
@@ -448,11 +532,28 @@ public class DebugDataParser {
                 putIfNotBlocked("LocationDetails.Sounds.Mood", mood, missing);
                 continue;
             }
+
+            System.err.println("Lestora Debug. New line found? Couldn't find line parsing logic for: " + line);
         }
 
         for (String orphan : missing) {
             data.remove(orphan);
         }
+    }
+
+    private static void UseHandler(String lineKey, String line, Set<String> missing) {
+        LineHandler handler = lineHandlers.get(lineKey);
+        Function<Map<String,String>,String> handlerResult = x -> line;
+        if (handler != null){
+            try {
+                handlerResult = handler.handle(lineKey, line, (datumKey, datumValue) -> {
+                    putIfNotBlocked(lineKey + "." + datumKey, datumValue, missing);
+                });
+            } catch (Exception e) {
+                System.err.println("Error in handler for " + lineKey + ": " + e.getMessage());
+            }
+        }
+        rebuilderMap.put(lineKey, handlerResult);
     }
 
     private static void parseRight(List<String> lines) {
@@ -669,27 +770,12 @@ public class DebugDataParser {
                 case "<br>" -> {
                     boolean firstIsBreak = leftLines.get(0).equals("<br>");
                     if (!output.isEmpty() || firstIsBreak) {
-                        output.add("");
+                        output.add("§n");
                     }
                 }
 
                 case "MinecraftData.VersionInfo" -> {
-                    String ver    = data.get("MinecraftData.VersionInfo.VersionNumber");
-                    String mod    = data.get("MinecraftData.VersionInfo.ModName");
-
-                    // skip if absolutely nothing to show
-                    if (ver == null && mod == null) {
-                        break;
-                    }
-
-                    StringBuilder sb = new StringBuilder("Minecraft");
-                    if (ver != null) {
-                        sb.append(" ").append(ver);
-                    }
-                    if (mod != null) {
-                        sb.append(" (").append(mod).append(")");
-                    }
-                    output.add(sb.toString());
+                    RebuildLine(key, output);
                 }
 
 
@@ -1224,6 +1310,25 @@ public class DebugDataParser {
         }
 
         return output;
+    }
+
+    private static void RebuildLine(String key, List<String> output) {
+        var rebuilder = getRebuilder(key);
+        if (rebuilder == null) return;
+        Map<String,String> valuesMap = new LinkedHashMap<>();
+        for (var entry : data.entrySet()) {
+            String fullKey = entry.getKey();
+            if (fullKey.startsWith(key + ".")) {
+                String datumKey = fullKey.substring(key.length() + 1);
+                valuesMap.put(datumKey, entry.getValue());
+            }
+        }
+        try {
+            String out = rebuilder.apply(valuesMap);
+            if (out != null) output.add(out);
+        } catch (Exception e) {
+            System.err.println("Error rebuilding " + key + ": " + e.getMessage());
+        }
     }
 
     public static List<String> getRightValues() {
