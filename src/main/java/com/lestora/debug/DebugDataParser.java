@@ -1,5 +1,6 @@
-package com.lestora.debug.models;
+package com.lestora.debug;
 import net.minecraft.ChatFormatting;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -94,41 +95,6 @@ public class DebugDataParser {
             "Targets.TargetEntity"
     ));
 
-    static {
-        registerHandler("MinecraftData.VersionInfo", (lineKey, line, emit) -> {
-            // "Minecraft 1.21.4 (MOD_DEV/forge)"
-            // Use a regex to pull out version and optional mod name
-            Matcher m = Pattern.compile("^Minecraft\\s+(\\S+)(?:\\s+\\(([^)]+)\\))?").matcher(line);
-            if (m.find()) {
-                String version = m.group(1);
-                emit.accept("VersionNumber", version);
-
-                String modName = m.group(2);
-                if (modName != null && !modName.isEmpty()) {
-                    emit.accept("ModName", modName);
-                }
-            }
-
-            return (datumKVP) -> {
-                String ver    = datumKVP.get("VersionNumber");
-                String mod    = datumKVP.get("ModName");
-
-                if (ver == null && mod == null) {
-                    return null;
-                }
-
-                StringBuilder sb = new StringBuilder("Minecraft");
-                if (ver != null) {
-                    sb.append(" ").append(ver);
-                }
-                if (mod != null) {
-                    sb.append(" (").append(mod).append(")");
-                }
-                return sb.toString();
-            };
-        });
-    }
-
     /**
      * Register a handler for a specific lineKey.
      * Any existing handler for that key will be replaced.
@@ -182,60 +148,16 @@ public class DebugDataParser {
             }
 
             if (line.contains(" fps ")) {
-                // "60 fps T: 120 vsync fancy fancy-clouds B: 2"
-                // or later:
-                // "60 fps T: 120 vsync fancy fancy-clouds B: 2 GPU: 20%"
-
-                String[] tok = line.split("\\s+");
-                // first token is always the fps number
-                if (tok.length > 0) {
-                    putIfNotBlocked("MinecraftData.Renderer.FPS", tok[0], missing);
-                }
-
-                // loop through all the tokens looking for known markers
-                for (int j = 1; j < tok.length; j++) {
-                    switch (tok[j]) {
-                        case "T:" -> {
-                            if (j + 1 < tok.length) {
-                                putIfNotBlocked("MinecraftData.Renderer.TickTime", tok[j + 1], missing);
-                            }
-                        }
-                        case "vsync" -> putIfNotBlocked("MinecraftData.Renderer.VSync", "on", missing);
-                        case "fast", "fancy", "fabulous" ->
-                                putIfNotBlocked("MinecraftData.Renderer.Graphics", tok[j], missing);
-                        case "fancy-clouds", "fast-clouds" ->
-                                putIfNotBlocked("MinecraftData.Renderer.Clouds", tok[j], missing);
-                        case "B:" -> {
-                            if (j + 1 < tok.length) {
-                                putIfNotBlocked("MinecraftData.Renderer.BiomeBlend", tok[j + 1], missing);
-                            }
-                        }
-                        case "GPU:" -> {
-                            if (j + 1 < tok.length) {
-                                // strip the trailing “%”
-                                putIfNotBlocked(
-                                        "MinecraftData.Renderer.GPU",
-                                        tok[j + 1].replace("%", ""),
-                                        missing
-                                );
-                            }
-                        }
-                    }
-                }
-                continue;
+                try {
+                    String[] tok = line.split("\\s+");
+                    Integer.parseInt(tok[0]); // Make sure this is the actual fps line.
+                    UseHandler("MinecraftData.Renderer", line, missing);
+                    continue;
+                } catch (NumberFormatException ignored) { }
             }
 
             if (line.startsWith("Integrated server @")) {
-                // "Integrated server @ 3.1/50.0 ms, 22 tx, 1053 rx"
-                String[] at = line.split("@");
-                putIfNotBlocked("MinecraftData.Server.Brand", at[0].replace("Integrated server","").trim(), missing);
-                String[] parts = at[1].split(",");
-                String timing = parts[0].replace("ms","").trim();
-                String[] times = timing.split("/");
-                putIfNotBlocked("MinecraftData.Server.TickTimeMs", times[0], missing);
-                putIfNotBlocked("MinecraftData.Server.TicksPerSecond", times[1], missing);
-                putIfNotBlocked("MinecraftData.Server.PacketsSent", parts[1].trim().split(" ")[0], missing);
-                putIfNotBlocked("MinecraftData.Server.PacketsReceived", parts[2].trim().split(" ")[0], missing);
+                UseHandler("MinecraftData.Server", line, missing);
                 continue;
             }
 
@@ -541,21 +463,6 @@ public class DebugDataParser {
         }
     }
 
-    private static void UseHandler(String lineKey, String line, Set<String> missing) {
-        LineHandler handler = lineHandlers.get(lineKey);
-        Function<Map<String,String>,String> handlerResult = x -> line;
-        if (handler != null){
-            try {
-                handlerResult = handler.handle(lineKey, line, (datumKey, datumValue) -> {
-                    putIfNotBlocked(lineKey + "." + datumKey, datumValue, missing);
-                });
-            } catch (Exception e) {
-                System.err.println("Error in handler for " + lineKey + ": " + e.getMessage());
-            }
-        }
-        rebuilderMap.put(lineKey, handlerResult);
-    }
-
     private static void parseRight(List<String> lines) {
         Set<String> missing = new HashSet<>();
         for (String lineKey : rightLines) {
@@ -688,6 +595,21 @@ public class DebugDataParser {
         }
     }
 
+    private static void UseHandler(String lineKey, String line, Set<String> missing) {
+        LineHandler handler = lineHandlers.get(lineKey);
+        Function<Map<String,String>,String> handlerResult = x -> line;
+        if (handler != null){
+            try {
+                handlerResult = handler.handle(lineKey, line, (datumKey, datumValue) -> {
+                    putIfNotBlocked(lineKey + "." + datumKey, datumValue, missing);
+                });
+            } catch (Exception e) {
+                System.err.println("Error in handler for " + lineKey + ": " + e.getMessage());
+            }
+        }
+        rebuilderMap.put(lineKey, handlerResult);
+    }
+
     private static int parseTargetSection(List<String> lines, int i, String type, Set<String> missing) {
         // 1) header line “Targeted X: coords…”
         String header = lines.get(i).trim();
@@ -730,7 +652,7 @@ public class DebugDataParser {
 
     /** Helper to put a key/value if not blocked; else remove it. */
     private static void putIfNotBlocked(String key, String value, Set<String> missing) {
-        if (key == null || value == null) return;
+        if (StringUtils.isBlank(key) || StringUtils.isBlank(value)) return;
 
         if (isBlocked(key)) {
             data.remove(key);
@@ -774,68 +696,9 @@ public class DebugDataParser {
                     }
                 }
 
-                case "MinecraftData.VersionInfo" -> {
+                case "MinecraftData.VersionInfo", "MinecraftData.Renderer", "MinecraftData.Server" -> {
                     RebuildLine(key, output);
                 }
-
-
-                case "MinecraftData.Renderer" -> {
-                    String fps    = data.get("MinecraftData.Renderer.FPS");
-                    String tick   = data.get("MinecraftData.Renderer.TickTime");
-                    String vsync  = data.get("MinecraftData.Renderer.VSync");
-                    String gfx    = data.get("MinecraftData.Renderer.Graphics");
-                    String clouds = data.get("MinecraftData.Renderer.Clouds");
-                    String blend  = data.get("MinecraftData.Renderer.BiomeBlend");
-                    String gpu    = data.get("MinecraftData.Renderer.GPU");
-
-                    // skip if nothing to show
-                    if (fps == null && tick == null && !"on".equals(vsync)
-                            && (gfx == null || gfx.isEmpty())
-                            && (clouds == null || clouds.isEmpty())
-                            && blend == null && gpu == null) {
-                        break;
-                    }
-
-                    List<String> parts = new ArrayList<>();
-                    if (fps != null)    parts.add(fps + " fps");
-                    if (tick != null)   parts.add("T: " + tick);
-                    if ("on".equals(vsync)) parts.add("vsync");
-                    if (gfx != null && !gfx.isEmpty())    parts.add(gfx);
-                    if (clouds != null && !clouds.isEmpty()) parts.add(clouds);
-                    if (blend != null) parts.add("B: " + blend);
-                    if (gpu != null)   parts.add("GPU: " + gpu + "%");
-
-                    output.add(String.join(" ", parts));
-                }
-
-                case "MinecraftData.Server" -> {
-                    String brandKey = data.get("MinecraftData.Server.Brand");
-                    String defaultLabel = "Integrated server";
-                    String label = (brandKey != null && !brandKey.isBlank()) ? brandKey : defaultLabel;
-
-                    String tms  = data.get("MinecraftData.Server.TickTimeMs");
-                    String tps  = data.get("MinecraftData.Server.TicksPerSecond");
-                    String sent = data.get("MinecraftData.Server.PacketsSent");
-                    String recv = data.get("MinecraftData.Server.PacketsReceived");
-
-                    List<String> parts = new ArrayList<>();
-                    if (tms != null && tps != null) parts.add(tms + "/" + tps + " ms");
-                    if (sent != null)               parts.add(sent + " tx");
-                    if (recv != null)               parts.add(recv + " rx");
-
-                    // skip entire line if neither a custom brand nor any parts exist
-                    if ((brandKey == null || brandKey.isBlank()) && parts.isEmpty()) {
-                        break;
-                    }
-
-                    // build the output
-                    StringBuilder sb = new StringBuilder(label);
-                    if (!parts.isEmpty()) {
-                        sb.append(" @ ").append(String.join(", ", parts));
-                    }
-                    output.add(sb.toString());
-                }
-
 
                 case "MinecraftData.Chunks" -> {
                     // gather each sub‐value only if present

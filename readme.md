@@ -1,6 +1,6 @@
 # Lestora Debugger
 
-This is a standalone client mod that allows other mods to take control of a new custom F3 screen.  By default, this will show coords, facing direction, and block light level.  Let me know if you think it should show more by default.
+This is a standalone client mod that allows other mods to take control of the F3 screen.
 
 Other mods (Lestora or otherwise) can use this mod to "subscribe" some of their inner mod detail so that it can be conditionally seen in realtime.  I use this in other mods for things like showing the player's wetness and temperature while developing.
 

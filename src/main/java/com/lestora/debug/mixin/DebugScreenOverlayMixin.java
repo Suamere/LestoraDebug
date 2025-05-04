@@ -1,6 +1,6 @@
 package com.lestora.debug.mixin;
 
-import com.lestora.debug.models.DebugDataParser;
+import com.lestora.debug.DebugDataParser;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.DebugScreenOverlay;
 import org.spongepowered.asm.mixin.Mixin;

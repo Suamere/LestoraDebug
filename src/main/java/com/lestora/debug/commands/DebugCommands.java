@@ -1,6 +1,6 @@
 package com.lestora.debug.commands;
 
-import com.lestora.debug.models.DebugDataParser;
+import com.lestora.debug.DebugDataParser;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
