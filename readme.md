@@ -14,9 +14,9 @@ Other mods (Lestora or otherwise) can use this mod to "subscribe" some of their 
 3. Launch Minecraft with the Forge profile.
 
 ## Commands
-- Use the command `/lestora debug enableF3 [true/false]` to re-enable the Minecraft F3 screen. Default when this mod is installed is disabled (enableF3 false).
-- Use the command `/lestora debug list` to show keys and priority for the debug values.  This may give you insight into how other mods are using it in case you want to hook in yourself.
-- Use the command `/lestora debug enableHud [true/false]` to turn on "hud mode".  This just means that when "F3 is off", it still shows limited (higher priority) information at the top of the screen.
+- Use the command `/lestora debug listIgnoredKeys` will show you which datum points have been filtered out.
+- Use the command `/lestora debug ignoreKey [key name]` will ignore that one datum point.  Grouped options starting with ! will ignore all datum points related to that group.
+- Use the command `/lestora debug allowKey [key name]` will un-ignore that one datum point.  Grouped options starting with ! will un-ignore all datum points related to that group.
 
 ## Compatibility
 - **Minecraft Version:** 1.21.4

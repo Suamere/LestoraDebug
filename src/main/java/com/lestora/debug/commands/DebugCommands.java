@@ -11,7 +11,9 @@ import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 @Mod.EventBusSubscriber(value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -54,19 +56,26 @@ public class DebugCommands {
             });
     }
 
+    // ToDo: Make these changes save to and pull from a config toml?
     private static void ignoreKey(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.then(Commands.argument("key", StringArgumentType.greedyString())
                 .suggests((ctx, builder) -> {
-                    builder.suggest("!All");
-                    builder.suggest("!MinecraftData (TopLeft)");
-                    builder.suggest("!SystemData (TopRight)");
-                    builder.suggest("!LocationData (BottomLeft)");
-                    builder.suggest("!TargetData (BottomRight)");
+                    // collect every possible suggestion
+                    List<String> all = new ArrayList<>();
+                    all.add("!All");
+                    all.add("!MinecraftData (TopLeft)");
+                    all.add("!SystemData (TopRight)");
+                    all.add("!LocationData (BottomLeft)");
+                    all.add("!TargetData (BottomRight)");
+                    all.addAll(DebugDataParser.getAllKeys());
 
-                    for (String k : DebugDataParser.getAllKeys()) {
-                        builder.suggest(k);
+                    // manual filtering
+                    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+                    for (String s : all) {
+                        if (s.toLowerCase(Locale.ROOT).contains(remaining)) {
+                            builder.suggest(s);
+                        }
                     }
-
                     return builder.buildFuture();
                 })
             .executes(ctx -> {
@@ -130,16 +139,21 @@ public class DebugCommands {
     private static void allowKey(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.then(Commands.argument("key", StringArgumentType.greedyString())
             .suggests((ctx, builder) -> {
-                builder.suggest("!All");
-                builder.suggest("!MinecraftData (TopLeft)");
-                builder.suggest("!SystemData (TopRight)");
-                builder.suggest("!LocationData (BottomLeft)");
-                builder.suggest("!TargetData (BottomRight)");
+                List<String> all = new ArrayList<>();
+                all.add("!All");
+                all.add("!MinecraftData (TopLeft)");
+                all.add("!SystemData (TopRight)");
+                all.add("!LocationData (BottomLeft)");
+                all.add("!TargetData (BottomRight)");
+                all.addAll(DebugDataParser.blocklist);
 
-                for (String k : DebugDataParser.blocklist) {
-                    builder.suggest(k);
+                // manual filtering
+                String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+                for (String s : all) {
+                    if (s.toLowerCase(Locale.ROOT).contains(remaining)) {
+                        builder.suggest(s);
+                    }
                 }
-
                 return builder.buildFuture();
             })
                 .executes(ctx -> {
