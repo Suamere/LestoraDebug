@@ -3,15 +3,14 @@ import net.minecraft.ChatFormatting;
 
 import java.util.*;
 import java.util.regex.*;
-import java.util.stream.Stream;
 
 public class DebugDataParser {
     // Single flat map for all parsed data.
-    private static Map<String, String> data = new LinkedHashMap<>();
+    public static Map<String, String> data = new LinkedHashMap<>();
     // Static global blocklist for keys to exclude.
-    private static Set<String> blocklist = new HashSet<>();
+    public static Set<String> blocklist = new HashSet<>();
 
-    public static final List<String> leftLines = Collections.unmodifiableList(List.of(
+    public static final List<String> leftLines = new ArrayList<>(Arrays.asList(
             // Paragraph 1: game & perf
             "MinecraftData.VersionInfo",
             "MinecraftData.Renderer",
@@ -44,7 +43,7 @@ public class DebugDataParser {
     ));
 
     /** Ordered, line-level keys for the right column (with blank-line placeholders). */
-    public static final List<String> rightLines = Collections.unmodifiableList(List.of(
+    public static final List<String> rightLines = new ArrayList<>(Arrays.asList(
             // Java & Memory section
             "System.Java",                   // Java: 17.0.2 (64bit)
             "System.Memory",                 // Mem: 45% 512/1024MB
@@ -75,16 +74,6 @@ public class DebugDataParser {
 
             "Targets.TargetEntity"
     ));
-
-    /** Add a key to the blocklist (it will be omitted or removed). */
-    public static void addToBlocklist(String key) {
-        blocklist.add(key);
-        data.remove(key);
-    }
-    /** Remove a key from the blocklist (allow it to be parsed). */
-    public static void removeFromBlocklist(String key) {
-        blocklist.remove(key);
-    }
 
     public static List<String> getBlockedKeys() {
         return Collections.unmodifiableList(new ArrayList<>(blocklist));
@@ -598,12 +587,7 @@ public class DebugDataParser {
         }
     }
 
-    private static int parseTargetSection(
-            List<String> lines,
-            int i,
-            String type,
-            Set<String> missing
-    ) {
+    private static int parseTargetSection(List<String> lines, int i, String type, Set<String> missing) {
         // 1) header line “Targeted X: coords…”
         String header = lines.get(i).trim();
         String coords = header.substring(header.indexOf(':') + 1).trim();
@@ -643,15 +627,6 @@ public class DebugDataParser {
         return idx;
     }
 
-    private static int lol = 0;
-    private static void writeEverySecond(String msg) {
-        lol++;
-        if (lol == 100) {
-            lol = 0;
-            System.err.println("LOL: " + msg);
-        }
-    }
-
     /** Helper to put a key/value if not blocked; else remove it. */
     private static void putIfNotBlocked(String key, String value, Set<String> missing) {
         if (key == null || value == null) return;
@@ -681,72 +656,10 @@ public class DebugDataParser {
         return false;
     }
 
-    /** Returns all stored keys. */
     public static List<String> getAllKeys() {
         return new ArrayList<>(data.keySet());
     }
 
-    /**
-     * Returns immediate sub-keys under the given prefix.
-     * E.g. if data has "A.X", "A.Y.Z", "A.Y.W", getSubKeys("A")
-     * returns ["A.X","A.Y"].
-     */
-    public static List<String> getSubKeys(String prefix) {
-        Set<String> subs = new LinkedHashSet<>();
-        String prefixDot = prefix + ".";
-        for (String key : data.keySet()) {
-            if (key.startsWith(prefixDot)) {
-                String remainder = key.substring(prefixDot.length());
-                int dotIdx = remainder.indexOf('.');
-                if (dotIdx >= 0) {
-                    subs.add(prefix + "." + remainder.substring(0, dotIdx));
-                } else {
-                    subs.add(key);
-                }
-            }
-        }
-        return new ArrayList<>(subs);
-    }
-
-    /**
-     * Returns values under the given key.  If key is a leaf, returns its value.
-     * If key is a prefix, returns a list of values for each sub-key group, concatenated.
-     */
-    public static List<String> getValues(String key) {
-        List<String> result = new ArrayList<>();
-        if (data.containsKey(key) && !key.contains(".")) {
-            // top-level key with value
-            result.add(data.get(key));
-            return result;
-        }
-        if (data.containsKey(key)) {
-            // exact match leaf
-            result.add(data.get(key));
-            return result;
-        }
-        // prefix case: gather subkeys
-        List<String> subKeys = getSubKeys(key);
-        for (String subKey : subKeys) {
-            // collect children of subKey
-            List<String> childValues = new ArrayList<>();
-            String subPrefix = subKey + ".";
-            for (String k : data.keySet()) {
-                if (k.equals(subKey)) {
-                    childValues.add(data.get(k));
-                } else if (k.startsWith(subPrefix)) {
-                    childValues.add(data.get(k));
-                }
-            }
-            // join them (space-separated) or take single
-            if (!childValues.isEmpty()) {
-                result.add(String.join(" ", childValues));
-            }
-        }
-        return result;
-    }
-
-
-    /** Reconstructs the left‐column debug lines in order. */
     public static List<String> getLeftValues() {
         List<String> output = new ArrayList<>();
 
