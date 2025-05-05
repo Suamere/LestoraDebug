@@ -1,30 +1,26 @@
 package com.lestora.debug;
-import net.minecraft.ChatFormatting;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.regex.*;
 
 public class DebugDataParser {
     @FunctionalInterface
     public interface LineHandler {
         /**
-         * @param lineKey       the logical key for this line (e.g. "LocationDetails.Light")
          * @param rawLine       the exact text from F3
          * @param datumEmitter  call datumEmitter.accept(datumKey, datumValue) for each piece you parse
          * @return a Function that, given a map of datumKey→datumValue, reconstructs the line
          */
-        Function<Map<String,String>, String> handle(
-                String lineKey,
+        Function<Map<String,String>, List<String>> handle(
                 String rawLine,
                 BiConsumer<String,String> datumEmitter
         );
     }
     private static final Map<String, LineHandler> lineHandlers = new LinkedHashMap<>();
     // at top of class
-    private static final Map<String, Function<Map<String,String>,String>> rebuilderMap = new HashMap<>();
+    private static final Map<String, Function<Map<String,String>,List<String>>> rebuilderMap = new HashMap<>();
     // Single flat map for all parsed data.
     public static Map<String, String> data = new LinkedHashMap<>();
     // Static global blocklist for keys to exclude.
@@ -51,10 +47,10 @@ public class DebugDataParser {
             "LocationDetails.Chunk",
             "LocationDetails.Facing",
             "LocationDetails.Light",
-            "LocationDetails.LocalDifficulty",
             "LocationDetails.HeightmapClient",
             "LocationDetails.HeightmapServer",
             "LocationDetails.Biome",
+            "LocationDetails.LocalDifficulty",
             "LocationDetails.NoiseRouter",
             "LocationDetails.BiomeBuilder",
             "LocationDetails.MobCaps",
@@ -117,7 +113,7 @@ public class DebugDataParser {
     /**
      * Retrieve the rebuilder you registered for a given lineKey (or null).
      */
-    public static Function<Map<String,String>,String> getRebuilder(String lineKey) {
+    public static Function<Map<String,String>,List<String>> getRebuilder(String lineKey) {
         return rebuilderMap.get(lineKey);
     }
 
@@ -241,7 +237,7 @@ public class DebugDataParser {
             }
 
             if (line.startsWith("Biome:")) {
-                UseHandler("LocationDetails.Entities", line, missing);
+                UseHandler("LocationDetails.Biome", line, missing);
                 continue;
             }
 
@@ -350,10 +346,10 @@ public class DebugDataParser {
 
     private static void UseHandler(String lineKey, String line, Set<String> missing) {
         LineHandler handler = lineHandlers.get(lineKey);
-        Function<Map<String,String>,String> handlerResult = x -> line;
+        Function<Map<String,String>,List<String>> handlerResult = x -> Collections.singletonList(line);
         if (handler != null){
             try {
-                handlerResult = handler.handle(lineKey, line, (datumKey, datumValue) -> {
+                handlerResult = handler.handle(line, (datumKey, datumValue) -> {
                     putIfNotBlocked(lineKey + "." + datumKey, datumValue, missing);
                 });
             } catch (Exception e) {
@@ -371,8 +367,12 @@ public class DebugDataParser {
     ) {
         // 1) header “Targeted X: coords…”
         String header = lines.get(i).trim();
-        String coords = header.substring(header.indexOf(':') + 1).trim();
-        UseHandler(type + ".Coords", coords, missing);
+        if (header.indexOf(':') >= 0){
+            UseHandler(type + ".Coords", header.substring(header.indexOf(':') + 1).trim(), missing);
+        }
+        else {
+            UseHandler(type + ".Coords", "", missing);
+        }
 
         int idx = i;
 
@@ -471,8 +471,10 @@ public class DebugDataParser {
             }
         }
         try {
-            String out = rebuilder.apply(valuesMap);
-            if (out != null) output.add(out);
+            var outList = rebuilder.apply(valuesMap);
+            if (outList != null) {
+                output.addAll(outList);
+            }
         } catch (Exception e) {
             System.err.println("Error rebuilding " + key + ": " + e.getMessage());
         }

@@ -4,7 +4,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -42,32 +41,32 @@ public class LestoraDebugMod {
         DebugDataParser.registerHandler("LocationDetails.MobCaps",         LestoraDebugMod::locMobCaps);
         DebugDataParser.registerHandler("LocationDetails.Sounds",          LestoraDebugMod::locSounds);
 
-        DebugDataParser.registerHandler("System.Java",          LestoraDebugMod::sysJava);
-        DebugDataParser.registerHandler("System.Memory",          LestoraDebugMod::sysMemory);
-        DebugDataParser.registerHandler("System.AllocationRate",          LestoraDebugMod::sysAllocationRate);
-        DebugDataParser.registerHandler("System.Allocated",          LestoraDebugMod::sysAllocated);
-        DebugDataParser.registerHandler("System.CPU",          LestoraDebugMod::sysCPU);
-        DebugDataParser.registerHandler("System.Display",          LestoraDebugMod::sysDisplay);
-        DebugDataParser.registerHandler("System.Renderer",          LestoraDebugMod::sysRenderer);
-        DebugDataParser.registerHandler("System.OpenGLVersion",          LestoraDebugMod::sysOpenGLVersion);
+        DebugDataParser.registerHandler("System.Java",                     LestoraDebugMod::sysJava);
+        DebugDataParser.registerHandler("System.Memory",                   LestoraDebugMod::sysMemory);
+        DebugDataParser.registerHandler("System.AllocationRate",           LestoraDebugMod::sysAllocationRate);
+        DebugDataParser.registerHandler("System.Allocated",                LestoraDebugMod::sysAllocated);
+        DebugDataParser.registerHandler("System.CPU",                      LestoraDebugMod::sysCPU);
+        DebugDataParser.registerHandler("System.Display",                  LestoraDebugMod::sysDisplay);
+        DebugDataParser.registerHandler("System.Renderer",                 LestoraDebugMod::sysRenderer);
+        DebugDataParser.registerHandler("System.OpenGLVersion",            LestoraDebugMod::sysOpenGLVersion);
 
-        DebugDataParser.registerHandler("TargetBlock.Coords",          LestoraDebugMod::targetBlockCoords);
-        DebugDataParser.registerHandler("TargetBlock.ResourceLocation",          LestoraDebugMod::targetBlockResourceLocation);
-        DebugDataParser.registerHandler("TargetBlock.States",          LestoraDebugMod::targetBlockStates);
-        DebugDataParser.registerHandler("TargetBlock.Tags",          LestoraDebugMod::targetBlockTags);
+        DebugDataParser.registerHandler("TargetBlock.Coords",              (line, emitter) -> targetCoords(line, "Block", emitter));
+        DebugDataParser.registerHandler("TargetBlock.ResourceLocation",    LestoraDebugMod::targetResourceLocation);
+        DebugDataParser.registerHandler("TargetBlock.States",              LestoraDebugMod::targetStates);
+        DebugDataParser.registerHandler("TargetBlock.Tags",                LestoraDebugMod::targetBlockTags);
 
-//        DebugDataParser.registerHandler("TargetFluid.Coords",          LestoraDebugMod::targetFluidCoords);
-//        DebugDataParser.registerHandler("TargetFluid.ResourceLocation",          LestoraDebugMod::targetFluidResourceLocation);
-//        DebugDataParser.registerHandler("TargetFluid.States",          LestoraDebugMod::targetFluidStates);
-//        DebugDataParser.registerHandler("TargetFluid.Tags",          LestoraDebugMod::targetFluidTags);
-//
-//        DebugDataParser.registerHandler("TargetEntity.Coords",          LestoraDebugMod::targetEntityCoords);
-//        DebugDataParser.registerHandler("TargetEntity.ResourceLocation",          LestoraDebugMod::targetEntityResourceLocation);
-//        DebugDataParser.registerHandler("TargetEntity.States",          LestoraDebugMod::targetEntityStates);
-//        DebugDataParser.registerHandler("TargetEntity.Tags",          LestoraDebugMod::targetEntityTags);
+        DebugDataParser.registerHandler("TargetFluid.Coords",              (line, emitter) -> targetCoords(line, "Fluid", emitter));
+        DebugDataParser.registerHandler("TargetFluid.ResourceLocation",    LestoraDebugMod::targetResourceLocation);
+        DebugDataParser.registerHandler("TargetFluid.States",              LestoraDebugMod::targetStates);
+        DebugDataParser.registerHandler("TargetFluid.Tags",                LestoraDebugMod::targetBlockTags);
+
+        DebugDataParser.registerHandler("TargetEntity.Coords",             (line, emitter) -> targetCoords(line, "Entity", emitter));
+        DebugDataParser.registerHandler("TargetEntity.ResourceLocation",   LestoraDebugMod::targetResourceLocation);
+        DebugDataParser.registerHandler("TargetEntity.States",             LestoraDebugMod::targetStates);
+        DebugDataParser.registerHandler("TargetEntity.Tags",               LestoraDebugMod::targetBlockTags);
     }
 
-    private static Function<Map<String, String>, String> mcVersionInfo(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcVersionInfo(String line, BiConsumer<String, String> emit) {
         Matcher m = Pattern.compile("^Minecraft\\s+(\\S+)(?:\\s+\\(([^)]+)\\))?").matcher(line);
         if (m.find()) {
             String version = m.group(1);
@@ -97,11 +96,11 @@ public class LestoraDebugMod {
             if (mod != null) {
                 sb.append(" (").append(mod).append(")");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> mcRenderer(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcRenderer(String line, BiConsumer<String, String> emit) {
         // e.g. "60 fps T: 120 vsync fancy fancy-clouds B: 2 GPU: 20%"
         String[] tok = line.split("\\s+");
         emit.accept("FPS", tok[0]);
@@ -156,11 +155,11 @@ public class LestoraDebugMod {
             if (blend != null) parts.add("B: " + blend);
             if (gpu != null)   parts.add("GPU: " + gpu + "%");
 
-            return String.join(" ", parts);
+            return Collections.singletonList(String.join(" ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> mcServer(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcServer(String line, BiConsumer<String, String> emit) {
         // "Integrated server @ 3.1/50.0 ms, 22 tx, 1053 rx"
         String[] at = line.split("@");
         emit.accept("Brand", at[0].replace("Integrated server","").trim());
@@ -197,11 +196,11 @@ public class LestoraDebugMod {
             if (!parts.isEmpty()) {
                 sb.append(" @ ").append(String.join(", ", parts));
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> mcChunks(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcChunks(String line, BiConsumer<String, String> emit) {
         // "C: 305/15000 (s) D: 12, pC: 000, pU: 00, aB: 16"
         String[] p = line.split("\\s+");
         String[] ct = p[1].split("/");
@@ -227,7 +226,7 @@ public class LestoraDebugMod {
             List<String> parts = new ArrayList<>();
             // render count pair
             if (rs != null && ts != null) {
-                parts.add("C: " + rs + "/" + ts);
+                parts.add("C: " + rs + "/" + ts + " (s)");
             }
             // optional details
             if (rd != null) parts.add("D: " + rd);
@@ -240,11 +239,11 @@ public class LestoraDebugMod {
                 return null;
             }
 
-            return String.join(", ", parts);
+            return Collections.singletonList(String.join(", ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> mcEntities(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcEntities(String line, BiConsumer<String, String> emit) {
         // "E: 3/127, SD: 12"
         String entityPart = line.substring(0, line.indexOf(',')).trim();       // "E: 3/127"
         String[] counts     = entityPart.substring(entityPart.indexOf(' ')+1).split("/");
@@ -275,11 +274,11 @@ public class LestoraDebugMod {
                 sb.append(", SD: ").append(sd);
             }
 
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> mcParticles(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcParticles(String line, BiConsumer<String, String> emit) {
         // "P: 1270. T: 127"
         String[] parts = line.split("\\s+");
         emit.accept("Count",     parts[1].replace(".",""));
@@ -306,11 +305,11 @@ public class LestoraDebugMod {
                     sb.append(" T: ").append(tv);
                 }
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> mcChunksClient(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcChunksClient(String line, BiConsumer<String, String> emit) {
         // "Chunks[C] W: 961, 637 E: 127,76,637"
         String wPart = line.substring(line.indexOf("W:")+2, line.indexOf("E:")).trim();
         String ePart = line.substring(line.indexOf("E:")+2).trim();
@@ -338,7 +337,7 @@ public class LestoraDebugMod {
 
             List<String> parts = new ArrayList<>();
             if (c != null) parts.add("W: " + c);
-            if (l != null) parts.add("L: " + l);
+            if (l != null) parts.add(l); // "L: " + l, if we need extra description
 
             // combine entities/sections/ticking into one E: token if any present
             List<String> entParts = new ArrayList<>();
@@ -349,11 +348,11 @@ public class LestoraDebugMod {
                 parts.add("E: " + String.join(",", entParts));
             }
 
-            return "Chunks[C] " + String.join(", ", parts);
+            return Collections.singletonList("Chunks[C] " + String.join(", ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> mcChunksServer(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcChunksServer(String line, BiConsumer<String, String> emit) {
         // "Chunks[S] W: 3338 E: 173,103,890,890,0,0"
         String wVal = line.substring(line.indexOf("W:")+2, line.indexOf("E:")).trim();
         emit.accept("World", wVal);
@@ -382,24 +381,27 @@ public class LestoraDebugMod {
             if (w != null || e != null || vis != null || sec != null ||
                     ld != null || tk != null || tl != null || tu != null) {
 
+                var dubya = "";
+                var eee = "";
+                var hasE = false;
                 List<String> parts = new ArrayList<>();
-                if (w   != null) parts.add("W: " + w);
-                if (e   != null) parts.add("E: " + e);
-                if (vis != null) parts.add("Visible: " + vis);
-                if (sec != null) parts.add("Sections: " + sec);
-                if (ld  != null) parts.add("Loaded: " + ld);
-                if (tk  != null) parts.add("Ticking: " + tk);
-                if (tl  != null) parts.add("ToLoad: " + tl);
-                if (tu  != null) parts.add("ToUnload: " + tu);
+                if (e   != null) {parts.add(e); hasE = true;}
+                if (vis != null) {parts.add(vis); hasE = true;}
+                if (sec != null) {parts.add(sec); hasE = true;}
+                if (ld  != null) {parts.add(ld); hasE = true;}
+                if (tk  != null) {parts.add(tk); hasE = true;}
+                if (tl  != null) {parts.add(tl); hasE = true;}
+                if (tu  != null) {parts.add(tu); hasE = true;}
+                if (hasE) eee = " E: " + String.join(",", parts);
 
-                return "Chunks[S] " + String.join(", ", parts);
+                return Collections.singletonList("Chunks[S] " + dubya + eee);
             }
 
             return null;
         };
     }
 
-    private static Function<Map<String, String>, String> mcDimension(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> mcDimension(String line, BiConsumer<String, String> emit) {
         // "minecraft:overworld FC: 0"
         String[] parts = line.split("\\s+");
         emit.accept("ID", parts[0]);
@@ -425,11 +427,11 @@ public class LestoraDebugMod {
                 sb.append("FC: ").append(fc);
             }
 
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locPosition(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locPosition(String line, BiConsumer<String, String> emit) {
         // "XYZ: -123.000 / 64.000 / -123.000"
         String[] xyz = line.substring(5).split("/");
         emit.accept("X", xyz[0].trim());
@@ -451,11 +453,11 @@ public class LestoraDebugMod {
             String yy = y != null ? y : "?";
             String zz = z != null ? z : "?";
 
-            return "XYZ: " + xx + " / " + yy + " / " + zz;
+            return Collections.singletonList("XYZ: " + xx + " / " + yy + " / " + zz);
         };
     }
 
-    private static Function<Map<String, String>, String> locBlock(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locBlock(String line, BiConsumer<String, String> emit) {
         // "Block: -124 64 -124 [1 2 3]"
         String world = line.substring(7, line.indexOf("[")).trim();
         String rel   = line.substring(line.indexOf("[")+1, line.indexOf("]")).trim();
@@ -498,11 +500,11 @@ public class LestoraDebugMod {
                 sb.append(rz != null ? rz : "?");
                 sb.append("]");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locChunk(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locChunk(String line, BiConsumer<String, String> emit) {
         // "Chunk: -9 4 -9 [14 20 in r.-1.-1.mca]"
         String coord = line.substring(7, line.indexOf("[")).trim();
         String detail= line.substring(line.indexOf("[")+1, line.indexOf("]")).trim();
@@ -556,11 +558,11 @@ public class LestoraDebugMod {
                 sb.append("]");
             }
 
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locFacing(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locFacing(String line, BiConsumer<String, String> emit) {
         // "Facing: south (Towards positive Z) (1.5 / 66.8)"
         String[] seg = line.split("\\(");
         emit.accept("Compass", seg[0].split(":")[1].trim());
@@ -588,11 +590,11 @@ public class LestoraDebugMod {
             if (h != null) {
                 sb.append(" (").append(h).append(")");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locLight(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locLight(String line, BiConsumer<String, String> emit) {
         // "Client Light: 15 (15 sky, 9 block)"
         String totx = line.substring(13,line.indexOf("(")).trim();
         emit.accept("Total", totx);
@@ -629,11 +631,11 @@ public class LestoraDebugMod {
                 sb.append(String.join(", ", parts));
                 sb.append(")");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locLocalDifficulty(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locLocalDifficulty(String line, BiConsumer<String, String> emit) {
         // drop the prefix
         String rest = line.substring("Local Difficulty:".length()).trim();
         // handle the "??" case early
@@ -683,11 +685,11 @@ public class LestoraDebugMod {
             if (day != null) {
                 sb.append(" (Day ").append(day).append(")");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locHeightmapClient(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locHeightmapClient(String line, BiConsumer<String, String> emit) {
         // "CH S: 63 M: 63"
         String[] p = line.split("\\s+");
         emit.accept("WorldSurface",    p[2]);
@@ -709,11 +711,11 @@ public class LestoraDebugMod {
             if (mb != null) {
                 sb.append(" M: ").append(mb);
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locHeightmapServer(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locHeightmapServer(String line, BiConsumer<String, String> emit) {
         // "SH S: 63 O: 63 M: 63 ML: 63"
         String[] p = line.split("\\s+");
         emit.accept("WorldSurface",    p[2]);
@@ -735,11 +737,11 @@ public class LestoraDebugMod {
             if (of != null) sb.append(" O: ").append(of);
             if (mb != null) sb.append(" M: ").append(mb);
             if (ml != null) sb.append(" ML: ").append(ml);
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> locBiome(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locBiome(String line, BiConsumer<String, String> emit) {
         emit.accept("LocationDetails.Biome", line.substring(7).trim());
 
         return (data) -> {
@@ -747,11 +749,11 @@ public class LestoraDebugMod {
             if (bio == null) {
                 return null;
             }
-            return "Biome: " + bio;
+            return Collections.singletonList("Biome: " + bio);
         };
     }
 
-    private static Function<Map<String, String>, String> locNoiseRouter(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locNoiseRouter(String line, BiConsumer<String, String> emit) {
         String[] tok = line.split("\\s+");
         for (int k = 1; k < tok.length; k+=2) {
             String key = tok[k].replace(":", "");
@@ -770,25 +772,34 @@ public class LestoraDebugMod {
         }
 
         return (data) -> {
-            String[] labs = {
-                    "Temperature","Vegetation","Continents","Erosion",
-                    "Depth","Ridges","PeaksValleys","InitialDensity","FinalDensity"
-            };
             List<String> parts = new ArrayList<>();
-            for (String l : labs) {
-                String v = data.get("" + l);
-                if (v != null) {
-                    parts.add(l.charAt(0) + ": " + v);
-                }
-            }
+            String t = data.get("Temperature");
+            if (t != null) parts.add("T: " + t);
+            String v = data.get("Vegetation");
+            if (v != null) parts.add("V: " + v);
+            String c = data.get("Continents");
+            if (c != null) parts.add("C: " + c);
+            String e = data.get("Erosion");
+            if (e != null) parts.add("E: " + e);
+            String d = data.get("Depth");
+            if (d != null) parts.add("D: " + d);
+            String w = data.get("Ridges");
+            if (w != null) parts.add("W: " + w);
+            String pv = data.get("PeaksValleys");
+            if (pv != null) parts.add("PV: " + pv);
+            String as = data.get("InitialDensity");
+            if (as != null) parts.add("AS: " + as);
+            String n = data.get("FinalDensity");
+            if (n != null) parts.add("N: " + n);
+
             if (parts.isEmpty()) {
                 return null;
             }
-            return "NoiseRouter " + String.join(" ", parts);
+            return Collections.singletonList("NoiseRouter " + String.join(" ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> locBiomeBuilder(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locBiomeBuilder(String line, BiConsumer<String, String> emit) {
         // strip off the leading text
         String rest = line.substring("Biome builder".length()).trim();
         // the labels, in order:
@@ -806,7 +817,7 @@ public class LestoraDebugMod {
                 int next = rest.indexOf(labels[j], valueStart);
                 if (next >= 0) {
                     end = next;
-                    return null;
+                    break;
                 }
             }
 
@@ -827,7 +838,7 @@ public class LestoraDebugMod {
             String[] codes = {"PV","C","E","T","H"};
             List<String> parts = new ArrayList<>();
             for (int idx = 0; idx < labs.length; idx++) {
-                String v = data.get("" + labs[idx]);
+                String v = data.get(labs[idx]);
                 if (v != null) {
                     parts.add(codes[idx] + ": " + v);
                 }
@@ -835,11 +846,11 @@ public class LestoraDebugMod {
             if (parts.isEmpty()) {
                 return null;
             }
-            return "Biome builder " + String.join(" ", parts);
+            return Collections.singletonList("Biome builder " + String.join(" ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> locMobCaps(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locMobCaps(String line, BiConsumer<String, String> emit) {
         String[] tok = line.replace(",", "").split("\\s+");
         int aCount = 0, wCount = 0, mCount = 0;
         for (int k = 0; k < tok.length; k+=2) {
@@ -890,11 +901,11 @@ public class LestoraDebugMod {
             if (parts.isEmpty()) {
                 return null;
             }
-            return String.join(", ", parts);
+            return Collections.singletonList(String.join(", ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> locSounds(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> locSounds(String line, BiConsumer<String, String> emit) {
         String[] partsx = line.split("\\s+");
         String[] stx = partsx[1].split("/");
         emit.accept("Static", stx[0]);
@@ -931,11 +942,11 @@ public class LestoraDebugMod {
             if (mood != null) {
                 parts.add("(Mood " + mood + "%)");
             }
-            return "Sounds: " + String.join(" + ", parts);
+            return Collections.singletonList("Sounds: " + String.join(" + ", parts));
         };
     }
 
-    private static Function<Map<String, String>, String> sysJava(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysJava(String line, BiConsumer<String, String> emit) {
 
         // e.g. "Java: 21.0.6" or "Java: 17.0.2 (64bit)"
         String rest = line.substring("Java:".length()).trim();
@@ -966,11 +977,11 @@ public class LestoraDebugMod {
                 if (version == null) sb.append(":");
                 sb.append(" (").append(bits).append(")");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> sysMemory(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysMemory(String line, BiConsumer<String, String> emit) {
 
         // Example: "Mem: 45% 512/1024"
         String[] parts = line.split("[ %/]+");
@@ -1002,11 +1013,11 @@ public class LestoraDebugMod {
                     sb.append(t);
                 }
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> sysAllocationRate(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysAllocationRate(String line, BiConsumer<String, String> emit) {
 
         // Example: "Allocation rate: 5.0 MiB/s"
         String[] parts = line.split("\\s+");
@@ -1017,13 +1028,13 @@ public class LestoraDebugMod {
         return (data) -> {
             String rate = data.get("AllocationRate");
             if (rate != null) {
-                return "Allocation rate: " + rate;
+                return Collections.singletonList("Allocation rate: " + rate);
             }
             return null;
         };
     }
 
-    private static Function<Map<String, String>, String> sysAllocated(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysAllocated(String line, BiConsumer<String, String> emit) {
 
         // drop the prefix and split on whitespace
         String rest = line.substring("Allocated:".length()).trim();
@@ -1069,11 +1080,11 @@ public class LestoraDebugMod {
                     sb.append(at);
                 }
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> sysCPU(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysCPU(String line, BiConsumer<String, String> emit) {
 
         // Example: "CPU: 8 Intel(R) Core(TM)..."
         String[] parts = line.split("\\s+", 3);
@@ -1092,11 +1103,11 @@ public class LestoraDebugMod {
             StringBuilder sb = new StringBuilder("CPU");
             if (cores != null) sb.append(": ").append(cores);
             if (name  != null) sb.append(cores != null ? " " : ": ").append(name);
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> sysDisplay(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysDisplay(String line, BiConsumer<String, String> emit) {
 
         // 1) parse the Display: resolution/vendor as before
         Matcher dispMatch = Pattern.compile("Display:\\s*(\\S+)\\s*\\(([^)]+)\\)")
@@ -1120,31 +1131,31 @@ public class LestoraDebugMod {
                 if (res == null) sb.append(":");
                 sb.append(" (").append(vendor).append(")");
             }
-            return sb.toString();
+            return Collections.singletonList(sb.toString());
         };
     }
 
-    private static Function<Map<String, String>, String> sysRenderer(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysRenderer(String line, BiConsumer<String, String> emit) {
 
         emit.accept("Renderer", line);
 
         return (data) -> {
             String renderer = data.get("Renderer");
             if (renderer != null) {
-                return renderer;
+                return Collections.singletonList(renderer);
             }
             return null;
         };
     }
 
-    private static Function<Map<String, String>, String> sysOpenGLVersion(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> sysOpenGLVersion(String line, BiConsumer<String, String> emit) {
 
         emit.accept("OpenGLVersion", line);
 
         return (data) -> {
             String version = data.get("OpenGLVersion");
             if (version != null) {
-                return version;
+                return Collections.singletonList(version);
             }
             return null;
         };
@@ -1157,7 +1168,7 @@ public class LestoraDebugMod {
 
 
 
-    private static Function<Map<String, String>, String> targetBlockCoords(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> targetCoords(String line, String type, BiConsumer<String, String> emit) {
         emit.accept("Coords", line);
 
         return (data) -> {
@@ -1165,32 +1176,34 @@ public class LestoraDebugMod {
             if (coords == null) coords = "";
             else coords = ": " + coords;
 
-            return ChatFormatting.UNDERLINE + "Target Block" + coords;
+            return Collections.singletonList(ChatFormatting.UNDERLINE + "Targeted " + type + coords);
         };
     }
 
-    private static Function<Map<String, String>, String> targetBlockResourceLocation(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> targetResourceLocation(String line, BiConsumer<String, String> emit) {
         emit.accept("ResourceLocation", line);
-        return (data) -> data.get("ResourceLocation");
+        return (data) -> Collections.singletonList(data.get("ResourceLocation"));
     }
 
-    private static Function<Map<String, String>, String> targetBlockStates(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> targetStates(String line, BiConsumer<String, String> emit) {
         emit.accept("States", line);
 
         return (data) -> {
             String states = data.get("States");
             if (states == null || states.isBlank()) return null;
-            return states.replace(";", "XXX");
+
+            return List.of(states.split(";"));
         };
     }
 
-    private static Function<Map<String, String>, String> targetBlockTags(String lineKey, String line, BiConsumer<String, String> emit) {
+    private static Function<Map<String, String>, List<String>> targetBlockTags(String line, BiConsumer<String, String> emit) {
         emit.accept("Tags", line);
 
         return (data) -> {
             String tags = data.get("Tags");
             if (tags == null || tags.isBlank()) return null;
-            return tags.replace(";", "XXX");
+
+            return List.of(tags.split(";"));
         };
     }
 }
