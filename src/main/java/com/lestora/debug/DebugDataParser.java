@@ -11,16 +11,13 @@ public class DebugDataParser {
         /**
          * @param rawLine       the exact text from F3
          * @param datumEmitter  call datumEmitter.accept(datumKey, datumValue) for each piece you parse
-         * @return a Function that, given a map of datumKey→datumValue, reconstructs the line
+         * @return a Function that, given a map of key/values you emitted, reconstructs the line
          */
-        Function<Map<String,String>, List<String>> handle(
-                String rawLine,
-                BiConsumer<String,String> datumEmitter
-        );
+        Function<Map<String,String>, List<String>> handle(String rawLine, BiConsumer<String,String> datumEmitter);
     }
     private static final Map<String, LineHandler> lineHandlers = new LinkedHashMap<>();
     // at top of class
-    private static final Map<String, Function<Map<String,String>,List<String>>> rebuilderMap = new HashMap<>();
+    public static final Map<String, Function<Map<String,String>,List<String>>> rebuilderMap = new HashMap<>();
     // Single flat map for all parsed data.
     public static Map<String, String> data = new LinkedHashMap<>();
     // Static global blocklist for keys to exclude.
@@ -54,7 +51,8 @@ public class DebugDataParser {
             "LocationDetails.NoiseRouter",
             "LocationDetails.BiomeBuilder",
             "LocationDetails.MobCaps",
-            "LocationDetails.Sounds"
+            "LocationDetails.Sounds",
+            "MyKey"
     ));
 
     /** Ordered, line-level keys for the right column (with blank-line placeholders). */
@@ -141,127 +139,158 @@ public class DebugDataParser {
             }
         }
 
+        var lastSection = "";
+        var waitedForChunk = false;
         for (String raw : lines) {
             String line = raw.trim();
             if (line.isEmpty()) continue;
 
+            if (line.contains("Waiting for chunk")) {
+                if (!waitedForChunk) {
+                    waitedForChunk = true;
+                    useHandler("LocationDetails.Light", line, missing);
+                }
+                continue;
+            }
+
             // ─── first paragraph (MinecraftData) ───
             if (line.startsWith("Minecraft ")) {
-                UseHandler("MinecraftData.VersionInfo", line, missing);
+                useHandler("MinecraftData.VersionInfo", line, missing);
                 continue;
             }
 
             if (line.contains(" fps ")) {
+                lastSection = "Renderer";
                 try {
                     String[] tok = line.split("\\s+");
                     Integer.parseInt(tok[0]); // Make sure this is the actual fps line.
-                    UseHandler("MinecraftData.Renderer", line, missing);
+                    useHandler("MinecraftData.Renderer", line, missing);
                     continue;
                 } catch (NumberFormatException ignored) { }
             }
 
             if (line.startsWith("Integrated server @")) {
-                UseHandler("MinecraftData.Server", line, missing);
+                lastSection = "Server";
+                useHandler("MinecraftData.Server", line, missing);
                 continue;
             }
 
             if (line.startsWith("C: ")) {
-                UseHandler("MinecraftData.Chunks", line, missing);
+                lastSection = "Chunks";
+                useHandler("MinecraftData.Chunks", line, missing);
                 continue;
             }
 
             if (line.startsWith("E: ")) {
-                UseHandler("MinecraftData.Entities", line, missing);
+                lastSection = "Entities";
+                useHandler("MinecraftData.Entities", line, missing);
                 continue;
             }
 
             if (line.startsWith("P: ")) {
-                UseHandler("MinecraftData.Particles", line, missing);
+                lastSection = "Particles";
+                useHandler("MinecraftData.Particles", line, missing);
                 continue;
             }
 
             if (line.startsWith("Chunks[C]")) {
-                UseHandler("MinecraftData.ChunksClient", line, missing);
+                lastSection = "ChunksClient";
+                useHandler("MinecraftData.ChunksClient", line, missing);
                 continue;
             }
 
             if (line.startsWith("Chunks[S]")) {
-                UseHandler("MinecraftData.ChunksServer", line, missing);
+                lastSection = "ChunksServer";
+                useHandler("MinecraftData.ChunksServer", line, missing);
                 continue;
             }
 
             if (line.startsWith("minecraft:") && line.contains("FC:")) {
-                UseHandler("MinecraftData.Dimension", line, missing);
+                lastSection = "Dimension";
+                useHandler("MinecraftData.Dimension", line, missing);
                 continue;
             }
 
             // ─── second paragraph (LocationDetails) ───
             if (line.startsWith("XYZ:")) {
-                UseHandler("LocationDetails.Position", line, missing);
+                lastSection = "Position";
+                useHandler("LocationDetails.Position", line, missing);
                 continue;
             }
 
             if (line.startsWith("Block:")) {
-                UseHandler("LocationDetails.Block", line, missing);
+                lastSection = "Block";
+                useHandler("LocationDetails.Block", line, missing);
                 continue;
             }
 
             if (line.startsWith("Chunk:")) {
-                UseHandler("LocationDetails.Chunk", line, missing);
+                lastSection = "Chunk";
+                useHandler("LocationDetails.Chunk", line, missing);
                 continue;
             }
 
             if (line.startsWith("Facing:")) {
-                UseHandler("LocationDetails.Facing", line, missing);
+                lastSection = "Facing";
+                useHandler("LocationDetails.Facing", line, missing);
                 continue;
             }
 
             if (line.startsWith("Client Light:")) {
-                UseHandler("LocationDetails.Light", line, missing);
+                lastSection = "Light";
+                useHandler("LocationDetails.Light", line, missing);
                 continue;
             }
 
             if (line.startsWith("Local Difficulty:")) {
-                UseHandler("LocationDetails.LocalDifficulty", line, missing);
+                lastSection = "LocalDifficulty";
+                useHandler("LocationDetails.LocalDifficulty", line, missing);
                 continue;
             }
 
             if (line.startsWith("CH ")) {
-                UseHandler("LocationDetails.HeightmapClient", line, missing);
+                lastSection = "HeightmapClient";
+                useHandler("LocationDetails.HeightmapClient", line, missing);
                 continue;
             }
 
             if (line.startsWith("SH ")) {
-                UseHandler("LocationDetails.HeightmapServer", line, missing);
+                lastSection = "HeightmapServer";
+                useHandler("LocationDetails.HeightmapServer", line, missing);
                 continue;
             }
 
             if (line.startsWith("Biome:")) {
-                UseHandler("LocationDetails.Biome", line, missing);
+                lastSection = "Biome";
+                useHandler("LocationDetails.Biome", line, missing);
                 continue;
             }
 
             if (line.startsWith("NoiseRouter")) {
-                UseHandler("LocationDetails.NoiseRouter", line, missing);
+                lastSection = "NoiseRouter";
+                useHandler("LocationDetails.NoiseRouter", line, missing);
                 continue;
             }
 
             if (line.startsWith("Biome builder")) {
-                UseHandler("LocationDetails.BiomeBuilder", line, missing);
+                lastSection = "BiomeBuilder";
+                useHandler("LocationDetails.BiomeBuilder", line, missing);
                 continue;
             }
 
             if (line.startsWith("SC:")) {
-                UseHandler("LocationDetails.MobCaps", line, missing);
+                lastSection = "MobCaps";
+                useHandler("LocationDetails.MobCaps", line, missing);
                 continue;
             }
 
             if (line.startsWith("Sounds:")) {
-                UseHandler("LocationDetails.Sounds", line, missing);
+                lastSection = "Sounds";
+                useHandler("LocationDetails.Sounds", line, missing);
                 continue;
             }
 
-            System.err.println("Lestora Debug. New line found? Couldn't find line parsing logic for: " + line);
+            System.err.println("Lestora Debug. New line found after " + lastSection + "? Couldn't find line parsing logic for: " + line);
         }
 
         for (String orphan : missing) {
@@ -287,41 +316,41 @@ public class DebugDataParser {
             if (line.isEmpty()) continue;
 
             if (line.startsWith("Java:")) {
-                UseHandler("System.Java", line, missing);
+                useHandler("System.Java", line, missing);
                 continue;
             }
 
             if (line.startsWith("Mem:")) {
-                UseHandler("System.Memory", line, missing);
+                useHandler("System.Memory", line, missing);
                 continue;
             }
 
             if (line.startsWith("Allocation rate:")) {
-                UseHandler("System.AllocationRate", line, missing);
+                useHandler("System.AllocationRate", line, missing);
                 continue;
             }
 
             if (line.startsWith("Allocated:")) {
-                UseHandler("System.Allocated", line, missing);
+                useHandler("System.Allocated", line, missing);
                 continue;
             }
 
             if (line.startsWith("CPU:")) {
-                UseHandler("System.CPU", line, missing);
+                useHandler("System.CPU", line, missing);
                 continue;
             }
 
             if (line.startsWith("Display:")) {
-                UseHandler("System.Display", line, missing);
+                useHandler("System.Display", line, missing);
 
                 // 2) the very next line is the GPU renderer
                 if (i+1 < lines.size()) {
-                    UseHandler("System.Renderer", lines.get(++i).trim(), missing);
+                    useHandler("System.Renderer", lines.get(++i).trim(), missing);
                 }
 
                 // 3) and the line after that is the OpenGL version
                 if (i+1 < lines.size()) {
-                    UseHandler("System.OpenGLVersion", lines.get(++i).trim(), missing);
+                    useHandler("System.OpenGLVersion", lines.get(++i).trim(), missing);
                 }
 
                 continue;
@@ -344,7 +373,7 @@ public class DebugDataParser {
         }
     }
 
-    private static void UseHandler(String lineKey, String line, Set<String> missing) {
+    private static void useHandler(String lineKey, String line, Set<String> missing) {
         LineHandler handler = lineHandlers.get(lineKey);
         Function<Map<String,String>,List<String>> handlerResult = x -> Collections.singletonList(line);
         if (handler != null){
@@ -359,19 +388,14 @@ public class DebugDataParser {
         rebuilderMap.put(lineKey, handlerResult);
     }
 
-    private static int parseTargetSection(
-            List<String> lines,
-            int i,
-            String type,
-            Set<String> missing
-    ) {
+    private static int parseTargetSection(List<String> lines, int i, String type, Set<String> missing) {
         // 1) header “Targeted X: coords…”
         String header = lines.get(i).trim();
         if (header.indexOf(':') >= 0){
-            UseHandler(type + ".Coords", header.substring(header.indexOf(':') + 1).trim(), missing);
+            useHandler(type + ".Coords", header.substring(header.indexOf(':') + 1).trim(), missing);
         }
         else {
-            UseHandler(type + ".Coords", "", missing);
+            useHandler(type + ".Coords", "", missing);
         }
 
         int idx = i;
@@ -379,7 +403,7 @@ public class DebugDataParser {
         // 2) next line is the resource‐location (if present)
         if (idx + 1 < lines.size()) {
             String resource = lines.get(++idx).trim();
-            UseHandler(type + ".ResourceLocation", resource, missing);
+            useHandler(type + ".ResourceLocation", resource, missing);
         }
 
         // 3) collect states & tags
@@ -399,18 +423,15 @@ public class DebugDataParser {
 
         // 4) write states/tags if any
         if (!states.isEmpty()) {
-            UseHandler(type + ".States", String.join(";", states), missing);
+            useHandler(type + ".States", String.join(";", states), missing);
         }
         if (!tags.isEmpty()) {
-            UseHandler(type + ".Tags", String.join(";", tags), missing);
+            useHandler(type + ".Tags", String.join(";", tags), missing);
         }
 
         return idx;
     }
 
-
-
-    /** Helper to put a key/value if not blocked; else remove it. */
     private static void putIfNotBlocked(String key, String value, Set<String> missing) {
         if (StringUtils.isBlank(key) || StringUtils.isBlank(value)) return;
 

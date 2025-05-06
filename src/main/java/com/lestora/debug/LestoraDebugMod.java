@@ -5,6 +5,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -64,6 +65,8 @@ public class LestoraDebugMod {
         DebugDataParser.registerHandler("TargetEntity.ResourceLocation",   LestoraDebugMod::targetResourceLocation);
         DebugDataParser.registerHandler("TargetEntity.States",             LestoraDebugMod::targetStates);
         DebugDataParser.registerHandler("TargetEntity.Tags",               LestoraDebugMod::targetBlockTags);
+
+        //DebugDataParser.rebuilderMap.put("MyKey", data -> Collections.singletonList("Hello" + LocalDateTime.now()));
     }
 
     private static Function<Map<String, String>, List<String>> mcVersionInfo(String line, BiConsumer<String, String> emit) {
@@ -595,6 +598,7 @@ public class LestoraDebugMod {
     }
 
     private static Function<Map<String, String>, List<String>> locLight(String line, BiConsumer<String, String> emit) {
+        if (line.contains("Waiting for chunk")) { return (x) -> Collections.singletonList(line); }
         // "Client Light: 15 (15 sky, 9 block)"
         String totx = line.substring(13,line.indexOf("(")).trim();
         emit.accept("Total", totx);
@@ -636,6 +640,8 @@ public class LestoraDebugMod {
     }
 
     private static Function<Map<String, String>, List<String>> locLocalDifficulty(String line, BiConsumer<String, String> emit) {
+        if (line.contains("Waiting for chunk")) { return (x) -> Collections.singletonList(line); }
+
         // drop the prefix
         String rest = line.substring("Local Difficulty:".length()).trim();
         // handle the "??" case early
@@ -690,6 +696,7 @@ public class LestoraDebugMod {
     }
 
     private static Function<Map<String, String>, List<String>> locHeightmapClient(String line, BiConsumer<String, String> emit) {
+        if (line.contains("Waiting for chunk")) { return (x) -> Collections.singletonList(line); }
         // "CH S: 63 M: 63"
         String[] p = line.split("\\s+");
         emit.accept("WorldSurface",    p[2]);
@@ -716,6 +723,7 @@ public class LestoraDebugMod {
     }
 
     private static Function<Map<String, String>, List<String>> locHeightmapServer(String line, BiConsumer<String, String> emit) {
+        if (line.contains("Waiting for chunk")) { return (x) -> Collections.singletonList(line); }
         // "SH S: 63 O: 63 M: 63 ML: 63"
         String[] p = line.split("\\s+");
         emit.accept("WorldSurface",    p[2]);
@@ -742,6 +750,7 @@ public class LestoraDebugMod {
     }
 
     private static Function<Map<String, String>, List<String>> locBiome(String line, BiConsumer<String, String> emit) {
+        if (line.contains("Waiting for chunk")) { return (x) -> Collections.singletonList(line); }
         emit.accept("LocationDetails.Biome", line.substring(7).trim());
 
         return (data) -> {

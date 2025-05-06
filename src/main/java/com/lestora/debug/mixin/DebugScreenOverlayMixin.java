@@ -18,15 +18,6 @@ public class DebugScreenOverlayMixin {
     private void onGetGameInformation(CallbackInfoReturnable<List<String>> cir) {
         DebugDataParser.parse(cir.getReturnValue());
         cir.setReturnValue(DebugDataParser.getLeftValues());
-        // Using ChatFormatting enum (toString() == the § code)
-//        lines.add(ChatFormatting.RED + "My red line");          // §c prefix
-//        lines.add("" + ChatFormatting.YELLOW + ChatFormatting.ITALIC + "Warning: " + "Blah"); // §e prefix
-//
-//        // Or hard-code the section-sign yourself
-//        lines.add("\u00A7aAll green things");
-//        lines.add("\u00A7rBack to default color");
-
-        //cir.setReturnValue(lines);
     }
 
     @Inject(method = "getSystemInformation", at = @At("RETURN"), cancellable = true)
