@@ -6,6 +6,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -19,54 +20,54 @@ public class LestoraDebugMod {
     }
 
     private void defaultF3Configuration() {
-        DebugDataParser.registerHandler("MinecraftData.VersionInfo",       LestoraDebugMod::mcVersionInfo);
-        DebugDataParser.registerHandler("MinecraftData.Renderer",          LestoraDebugMod::mcRenderer);
-        DebugDataParser.registerHandler("MinecraftData.Server",            LestoraDebugMod::mcServer);
-        DebugDataParser.registerHandler("MinecraftData.Chunks",            LestoraDebugMod::mcChunks);
-        DebugDataParser.registerHandler("MinecraftData.Entities",          LestoraDebugMod::mcEntities);
-        DebugDataParser.registerHandler("MinecraftData.Particles",         LestoraDebugMod::mcParticles);
-        DebugDataParser.registerHandler("MinecraftData.ChunksClient",      LestoraDebugMod::mcChunksClient);
-        DebugDataParser.registerHandler("MinecraftData.ChunksServer",      LestoraDebugMod::mcChunksServer);
-        DebugDataParser.registerHandler("MinecraftData.Dimension",         LestoraDebugMod::mcDimension);
-        DebugDataParser.registerHandler("LocationDetails.Position",        LestoraDebugMod::locPosition);
-        DebugDataParser.registerHandler("LocationDetails.Block",           LestoraDebugMod::locBlock);
-        DebugDataParser.registerHandler("LocationDetails.Chunk",           LestoraDebugMod::locChunk);
-        DebugDataParser.registerHandler("LocationDetails.Facing",          LestoraDebugMod::locFacing);
-        DebugDataParser.registerHandler("LocationDetails.Light",           LestoraDebugMod::locLight);
-        DebugDataParser.registerHandler("LocationDetails.LocalDifficulty", LestoraDebugMod::locLocalDifficulty);
-        DebugDataParser.registerHandler("LocationDetails.HeightmapClient", LestoraDebugMod::locHeightmapClient);
-        DebugDataParser.registerHandler("LocationDetails.HeightmapServer", LestoraDebugMod::locHeightmapServer);
-        DebugDataParser.registerHandler("LocationDetails.Biome",           LestoraDebugMod::locBiome);
-        DebugDataParser.registerHandler("LocationDetails.NoiseRouter",     LestoraDebugMod::locNoiseRouter);
-        DebugDataParser.registerHandler("LocationDetails.BiomeBuilder",    LestoraDebugMod::locBiomeBuilder);
-        DebugDataParser.registerHandler("LocationDetails.MobCaps",         LestoraDebugMod::locMobCaps);
-        DebugDataParser.registerHandler("LocationDetails.Sounds",          LestoraDebugMod::locSounds);
+        DebugDataParser.handleBuiltinF3("MinecraftData.VersionInfo",       LestoraDebugMod::mcVersionInfo);
+        DebugDataParser.handleBuiltinF3("MinecraftData.Renderer",          LestoraDebugMod::mcRenderer);
+        DebugDataParser.handleBuiltinF3("MinecraftData.Server",            LestoraDebugMod::mcServer);
+        DebugDataParser.handleBuiltinF3("MinecraftData.Chunks",            LestoraDebugMod::mcChunks);
+        DebugDataParser.handleBuiltinF3("MinecraftData.Entities",          LestoraDebugMod::mcEntities);
+        DebugDataParser.handleBuiltinF3("MinecraftData.Particles",         LestoraDebugMod::mcParticles);
+        DebugDataParser.handleBuiltinF3("MinecraftData.ChunksClient",      LestoraDebugMod::mcChunksClient);
+        DebugDataParser.handleBuiltinF3("MinecraftData.ChunksServer",      LestoraDebugMod::mcChunksServer);
+        DebugDataParser.handleBuiltinF3("MinecraftData.Dimension",         LestoraDebugMod::mcDimension);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Position",        LestoraDebugMod::locPosition);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Block",           LestoraDebugMod::locBlock);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Chunk",           LestoraDebugMod::locChunk);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Facing",          LestoraDebugMod::locFacing);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Light",           LestoraDebugMod::locLight);
+        DebugDataParser.handleBuiltinF3("LocationDetails.LocalDifficulty", LestoraDebugMod::locLocalDifficulty);
+        DebugDataParser.handleBuiltinF3("LocationDetails.HeightmapClient", LestoraDebugMod::locHeightmapClient);
+        DebugDataParser.handleBuiltinF3("LocationDetails.HeightmapServer", LestoraDebugMod::locHeightmapServer);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Biome",           LestoraDebugMod::locBiome);
+        DebugDataParser.handleBuiltinF3("LocationDetails.NoiseRouter",     LestoraDebugMod::locNoiseRouter);
+        DebugDataParser.handleBuiltinF3("LocationDetails.BiomeBuilder",    LestoraDebugMod::locBiomeBuilder);
+        DebugDataParser.handleBuiltinF3("LocationDetails.MobCaps",         LestoraDebugMod::locMobCaps);
+        DebugDataParser.handleBuiltinF3("LocationDetails.Sounds",          LestoraDebugMod::locSounds);
 
-        DebugDataParser.registerHandler("System.Java",                     LestoraDebugMod::sysJava);
-        DebugDataParser.registerHandler("System.Memory",                   LestoraDebugMod::sysMemory);
-        DebugDataParser.registerHandler("System.AllocationRate",           LestoraDebugMod::sysAllocationRate);
-        DebugDataParser.registerHandler("System.Allocated",                LestoraDebugMod::sysAllocated);
-        DebugDataParser.registerHandler("System.CPU",                      LestoraDebugMod::sysCPU);
-        DebugDataParser.registerHandler("System.Display",                  LestoraDebugMod::sysDisplay);
-        DebugDataParser.registerHandler("System.Renderer",                 LestoraDebugMod::sysRenderer);
-        DebugDataParser.registerHandler("System.OpenGLVersion",            LestoraDebugMod::sysOpenGLVersion);
+        DebugDataParser.handleBuiltinF3("System.Java",                     LestoraDebugMod::sysJava);
+        DebugDataParser.handleBuiltinF3("System.Memory",                   LestoraDebugMod::sysMemory);
+        DebugDataParser.handleBuiltinF3("System.AllocationRate",           LestoraDebugMod::sysAllocationRate);
+        DebugDataParser.handleBuiltinF3("System.Allocated",                LestoraDebugMod::sysAllocated);
+        DebugDataParser.handleBuiltinF3("System.CPU",                      LestoraDebugMod::sysCPU);
+        DebugDataParser.handleBuiltinF3("System.Display",                  LestoraDebugMod::sysDisplay);
+        DebugDataParser.handleBuiltinF3("System.Renderer",                 LestoraDebugMod::sysRenderer);
+        DebugDataParser.handleBuiltinF3("System.OpenGLVersion",            LestoraDebugMod::sysOpenGLVersion);
 
-        DebugDataParser.registerHandler("TargetBlock.Coords",              (line, emitter) -> targetCoords(line, "Block", emitter));
-        DebugDataParser.registerHandler("TargetBlock.ResourceLocation",    LestoraDebugMod::targetResourceLocation);
-        DebugDataParser.registerHandler("TargetBlock.States",              LestoraDebugMod::targetStates);
-        DebugDataParser.registerHandler("TargetBlock.Tags",                LestoraDebugMod::targetBlockTags);
+        DebugDataParser.handleBuiltinF3("TargetBlock.Coords",              (line, emitter) -> targetCoords(line, "Block", emitter));
+        DebugDataParser.handleBuiltinF3("TargetBlock.ResourceLocation",    LestoraDebugMod::targetResourceLocation);
+        DebugDataParser.handleBuiltinF3("TargetBlock.States",              LestoraDebugMod::targetStates);
+        DebugDataParser.handleBuiltinF3("TargetBlock.Tags",                LestoraDebugMod::targetBlockTags);
 
-        DebugDataParser.registerHandler("TargetFluid.Coords",              (line, emitter) -> targetCoords(line, "Fluid", emitter));
-        DebugDataParser.registerHandler("TargetFluid.ResourceLocation",    LestoraDebugMod::targetResourceLocation);
-        DebugDataParser.registerHandler("TargetFluid.States",              LestoraDebugMod::targetStates);
-        DebugDataParser.registerHandler("TargetFluid.Tags",                LestoraDebugMod::targetBlockTags);
+        DebugDataParser.handleBuiltinF3("TargetFluid.Coords",              (line, emitter) -> targetCoords(line, "Fluid", emitter));
+        DebugDataParser.handleBuiltinF3("TargetFluid.ResourceLocation",    LestoraDebugMod::targetResourceLocation);
+        DebugDataParser.handleBuiltinF3("TargetFluid.States",              LestoraDebugMod::targetStates);
+        DebugDataParser.handleBuiltinF3("TargetFluid.Tags",                LestoraDebugMod::targetBlockTags);
 
-        DebugDataParser.registerHandler("TargetEntity.Coords",             (line, emitter) -> targetCoords(line, "Entity", emitter));
-        DebugDataParser.registerHandler("TargetEntity.ResourceLocation",   LestoraDebugMod::targetResourceLocation);
-        DebugDataParser.registerHandler("TargetEntity.States",             LestoraDebugMod::targetStates);
-        DebugDataParser.registerHandler("TargetEntity.Tags",               LestoraDebugMod::targetBlockTags);
+        DebugDataParser.handleBuiltinF3("TargetEntity.Coords",             (line, emitter) -> targetCoords(line, "Entity", emitter));
+        DebugDataParser.handleBuiltinF3("TargetEntity.ResourceLocation",   LestoraDebugMod::targetResourceLocation);
+        DebugDataParser.handleBuiltinF3("TargetEntity.States",             LestoraDebugMod::targetStates);
+        DebugDataParser.handleBuiltinF3("TargetEntity.Tags",               LestoraDebugMod::targetBlockTags);
 
-        //DebugDataParser.rebuilderMap.put("MyKey", data -> Collections.singletonList("Hello" + LocalDateTime.now()));
+        //DebugDataParser.registerCustomRightHandler("MyKey", "TargetFluid.ResourceLocation", data -> Collections.singletonList("System DateTime: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("uuuu-MM-dd' 'HH:mm:ss"))));
     }
 
     private static Function<Map<String, String>, List<String>> mcVersionInfo(String line, BiConsumer<String, String> emit) {
@@ -1182,7 +1183,7 @@ public class LestoraDebugMod {
 
         return (data) -> {
             String coords = data.get("Coords");
-            if (coords == null) coords = "";
+            if (coords == null) return null;
             else coords = ": " + coords;
 
             return Collections.singletonList(ChatFormatting.UNDERLINE + "Targeted " + type + coords);

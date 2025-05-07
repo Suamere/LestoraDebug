@@ -1,6 +1,7 @@
 package com.lestora.debug;
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -51,8 +52,7 @@ public class DebugDataParser {
             "LocationDetails.NoiseRouter",
             "LocationDetails.BiomeBuilder",
             "LocationDetails.MobCaps",
-            "LocationDetails.Sounds",
-            "MyKey"
+            "LocationDetails.Sounds"
     ));
 
     /** Ordered, line-level keys for the right column (with blank-line placeholders). */
@@ -104,8 +104,24 @@ public class DebugDataParser {
      * @param lineKey   the logical key (e.g. "LocationDetails.Light")
      * @param handler   the parser/builder for that line
      */
-    public static void registerHandler(String lineKey, LineHandler handler) {
+    public static void handleBuiltinF3(String lineKey, LineHandler handler) {
         lineHandlers.put(lineKey, handler);
+    }
+    public static void registerCustomLeftHandler(String myKey, String afterKey, Function<Map<String,String>,List<String>> handler) {
+        if (myKey.equals(afterKey)) return;
+        leftLines.remove(myKey);
+        var idx = leftLines.indexOf(afterKey);
+        if (idx < 0) idx = 0;
+        leftLines.add(idx, myKey);
+        DebugDataParser.rebuilderMap.put(myKey, handler);
+    }
+    public static void registerCustomRightHandler(String myKey, String afterKey, Function<Map<String,String>,List<String>> handler) {
+        if (myKey.equals(afterKey)) return;
+        rightLines.remove(myKey);
+        var idx = rightLines.indexOf(afterKey);
+        if (idx < 0) idx = 0;
+        rightLines.add(idx, myKey);
+        DebugDataParser.rebuilderMap.put(myKey, handler);
     }
 
     /**
@@ -357,10 +373,10 @@ public class DebugDataParser {
             }
 
             line = line.replace("\u00A7n", "");
-            if (line.startsWith("Targeted Block:")) {
+            if (line.startsWith("Targeted Block")) {
                 i = parseTargetSection(lines, i, "TargetBlock", missing);
             }
-            else if (line.startsWith("Targeted Fluid:")) {
+            else if (line.startsWith("Targeted Fluid")) {
                 i = parseTargetSection(lines, i, "TargetFluid", missing);
             }
             else if (line.startsWith("Targeted Entity")) {
